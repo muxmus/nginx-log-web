@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="zh-CN">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width,initial-scale=1.0">
+		<title>log-nginx-web</title>
+		<link rel="shortcut icon" type="image/x-icon" href="https://yourdomain.com/icon/favicon.ico">
+		<script src="https://yourdomain.com/js/jquery-3.6.0.min.js"></script>
+		<style>
+			p {
+				border: 1px dashed #808080;
+				padding: .2em;
+				background-color: #272727;
+			}
+			.ip {
+				cursor: pointer;
+			}
+			.ip:hover {
+				text-decoration: underline;
+			}
+		</style>
+	</head>
+	<body style="margin:0;padding:.6em;background-color:#0C0C0C;font-size:.9em">
+		<div id="div" style="width:100%;height:100%;color:#CCC;word-break:break-all"></div>
+		<script>
+			function checkIP(ip) {
+			    if (ip.includes('.') && !ip.includes(':')) {
+			        return 'IPv4';
+			    } else if (ip.includes(':') && !ip.includes('.')) {
+			        return 'IPv6';
+			    } else if (ip.includes(':') && ip.includes('.')) {
+			        return 'IPv6';
+			    }
+			    return 'Neither';
+			}
+			function ipSearch(e, ip){
+				if(!e.innerHTML.includes(' | ')){
+					e.innerHTML += ' | ';
+					e.style.cursor = "default";
+					e.style.textDecoration = "none";
+					if(checkIP(ip) == "IPv4"){
+						$.ajax({
+							type: 'get',
+							url: 'https://qifu-api.baidubce.com/ip/geo/v1/district?ip=' + ip,
+							dataType: 'json',
+							success: function(jsonData){
+								e.innerHTML += (jsonData.data.continent + ' ' + jsonData.data.country + ' ' + jsonData.data.prov  + ' ' + jsonData.data.city + ' | ' + jsonData.data.isp);
+								if(jsonData.data.isp != jsonData.data.owner){
+									 e.innerHTML += (' ' + jsonData.data.owner);
+								};
+							}
+						});
+					}else if(checkIP(ip) == "IPv6"){
+						$.ajax({
+							type: 'get',
+							url: 'https://api.vore.top/api/IPdata?ip=' + ip,
+							dataType: 'json',
+							success: function(jsonData){
+								e.innerHTML += jsonData.adcode.o;
+							}
+						});
+					};
+				}
+			}
+			var bottom = true;
+			function ifBottom(){
+				let scrollTop = document.documentElement.scrollTop;
+				let clientHeight = document.documentElement.clientHeight;
+				let scrollHeight = document.documentElement.scrollHeight;
+				if(Math.ceil(scrollTop + clientHeight + 50) >= scrollHeight){
+					bottom = true;
+				}else{
+					bottom = false;
+				};
+			};
+			function scrollToBottom(){
+				if(bottom){
+					window.scrollTo({
+						top: document.body.scrollHeight,
+						left: 0,
+						behavior: "smooth",
+					});
+				};
+			};
+			function addNew(num, last){
+				lastNum = last;
+				if(num < last){
+					$.ajax({
+						type: 'get',
+						url: './' + num + '-' + last,
+						dataType: 'html',
+						success: function(html){
+							ifBottom()
+							document.getElementById('div').innerHTML += html;
+							scrollToBottom();
+						}
+					});
+				}else if(num == last){
+					$.ajax({
+						type: 'get',
+						url: './' + num,
+						dataType: 'html',
+						success: function(html){
+							ifBottom()
+							document.getElementById('div').innerHTML += html;
+							scrollToBottom();
+						}
+					});
+				};
+			};
+			function topFun(num, first){
+				if(num != first){
+					$.ajax({
+						type: 'get',
+						url: './' + num + '-' + first,
+						dataType: 'html',
+						success: function(html){
+							var oldHeight = document.documentElement.scrollHeight;
+							document.getElementById('div').innerHTML = html + document.getElementById('div').innerHTML;
+							window.scrollTo({
+								top: document.documentElement.scrollHeight - oldHeight,
+								behavior:'instant'
+							});
+							topNum = num;
+							htmlflag = true;
+						}
+					});
+				}else{
+					$.ajax({
+						type: 'get',
+						url: './' + num,
+						dataType: 'html',
+						success: function(html){
+							var oldHeight = document.documentElement.scrollHeight;
+							document.getElementById('div').innerHTML = html + document.getElementById('div').innerHTML;
+							window.scrollTo({
+								top: document.documentElement.scrollHeight - oldHeight,
+								behavior:'instant'
+							});
+							topNum = num;
+						}
+					});
+				};
+			};
+			var topNum = 1;
+			var lastNum = 0;
+			var flag = false;
+			var ws = new WebSocket("wss://yourdomain.com/last");
+            ws.onmessage = function(e){
+            	var last = e.data;
+            	if(!flag){
+            		flag = true;
+            		if(last > 101){
+            			topNum = parseInt(last) - 100;
+            			addNew(parseInt(last) - 100, last);
+            		}else{
+            			addNew(1, last);
+            		};
+            	}else{
+            		if(lastNum < last){
+            			addNew(parseInt(lastNum) + 1, last);
+            		};
+            	};
+            };
+            var firstflag = false;
+            var htmlflag = true;
+			window.onscroll = function(){
+				if(document.documentElement.scrollTop/(document.documentElement.scrollHeight - window.innerHeight) <= 0.05 && firstflag && htmlflag){
+					htmlflag = false;
+					if(topNum > 1001){
+						topFun(topNum - 1000, topNum - 1);
+					}else if(topNum > 1){
+						topFun(1, topNum - 1);
+					};
+				};
+				if(document.documentElement.scrollTop/(document.documentElement.scrollHeight - window.innerHeight) > 0.05){
+					firstflag = true;
+				};
+			};
+		</script>
+	</body>
+</html>
